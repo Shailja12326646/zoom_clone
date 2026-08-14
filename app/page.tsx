@@ -447,7 +447,7 @@ function MeetingRoom({ meeting, name, isHost, panel, setPanel, messages, message
           t.stop();
           mediaStreamRef.current?.removeTrack(t);
         });
-        mediaStreamRef.addTrack?.(newAudioTrack) ?? mediaStreamRef.current.addTrack(newAudioTrack);
+        mediaStreamRef.current.addTrack(newAudioTrack);
       } else {
         mediaStreamRef.current = newStream;
       }
