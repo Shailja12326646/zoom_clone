@@ -1,6 +1,12 @@
 import initSqlJs, { Database } from 'sql.js';
 
-const FASTAPI_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+const FASTAPI_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? 'https://zoom-clone-vpmw.onrender.com/api'
+    : 'http://127.0.0.1:8000/api');
 
 let dbInstance: Database | null = null;
 let initPromise: Promise<Database | null> | null = null;
