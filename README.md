@@ -15,11 +15,23 @@ A polished Zoom-style video conferencing workspace built with Next.js and Supaba
 
 ## Stack
 
-- Next.js 13 App Router
+- Next.js 13 App Router (Frontend)
+- Python 3 with FastAPI and Uvicorn (Backend)
+- SQLite database for persistent meeting, chat, recording, and file data
 - React and TypeScript
 - Tailwind CSS with custom responsive styling
-- SQLite for persistent meeting, chat, recording, and file data
 - Lucide React for interface icons
+
+## Running the Python FastAPI Backend
+
+```bash
+# Install dependencies
+pip install -r backend/requirements.txt
+
+# Start FastAPI server
+python backend/run.py
+# Server runs at http://127.0.0.1:8000 (Interactive docs at http://127.0.0.1:8000/docs)
+```
 
 ## Assumptions
 

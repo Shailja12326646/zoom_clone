@@ -1,5 +1,7 @@
 import initSqlJs, { Database } from 'sql.js';
 
+const FASTAPI_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
 let dbInstance: Database | null = null;
 let initPromise: Promise<Database | null> | null = null;
 
@@ -98,7 +100,6 @@ export interface SharedFileRecord {
   created_at: string;
 }
 
-// Fallback in-memory store in case WASM is blocked
 const fallbackStorage = {
   meetings: [] as MeetingRecord[],
   messages: [] as MessageRecord[],
@@ -134,7 +135,7 @@ export async function getDatabase(): Promise<Database | null> {
   initPromise = (async () => {
     try {
       const SQL = await initSqlJs({
-        locateFile: (file) => (file.endsWith('.wasm') ? `/${file}` : `/${file}`),
+        locateFile: (file) => `/${file}`,
       });
 
       let savedData: Uint8Array | null = null;
@@ -159,8 +160,7 @@ export async function getDatabase(): Promise<Database | null> {
       dbInstance = db;
       saveDatabase();
       return db;
-    } catch (err) {
-      console.warn('WASM SQLite initialization failed, using persistent structured fallback:', err);
+    } catch {
       loadFallback();
       return null;
     }
@@ -188,6 +188,16 @@ export function saveDatabase() {
 
 export const sqliteDb = {
   async getMeetings(): Promise<MeetingRecord[]> {
+    // 1. Try Python FastAPI Backend
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/meetings`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const data = await res.json();
+        return data as MeetingRecord[];
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -202,10 +212,10 @@ export const sqliteDb = {
             return obj as MeetingRecord;
           });
         }
-      } catch (err) {
-        console.error('SQLite query error', err);
-      }
+      } catch {}
     }
+
+    // 3. Fallback to Local Backup
     loadFallback();
     return fallbackStorage.meetings;
   },
@@ -224,6 +234,21 @@ export const sqliteDb = {
       created_at: createdAt,
     };
 
+    // 1. Try Python FastAPI Backend
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/meetings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMeeting),
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data as MeetingRecord;
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -242,9 +267,7 @@ export const sqliteDb = {
           ]
         );
         saveDatabase();
-      } catch (err) {
-        console.error('SQLite insert error', err);
-      }
+      } catch {}
     }
 
     loadFallback();
@@ -254,6 +277,16 @@ export const sqliteDb = {
   },
 
   async getMessages(meetingId: string): Promise<MessageRecord[]> {
+    // 1. Try Python FastAPI Backend
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/messages/${meetingId}`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const data = await res.json();
+        return data as MessageRecord[];
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -266,9 +299,7 @@ export const sqliteDb = {
         }
         stmt.free();
         return result;
-      } catch (err) {
-        console.error('SQLite getMessages error', err);
-      }
+      } catch {}
     }
 
     loadFallback();
@@ -286,6 +317,21 @@ export const sqliteDb = {
       created_at: createdAt,
     };
 
+    // 1. Try Python FastAPI Backend
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message),
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data as MessageRecord;
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -294,9 +340,7 @@ export const sqliteDb = {
           [id, message.meeting_id, message.sender_name, message.body, createdAt]
         );
         saveDatabase();
-      } catch (err) {
-        console.error('SQLite createMessage error', err);
-      }
+      } catch {}
     }
 
     loadFallback();
@@ -314,6 +358,21 @@ export const sqliteDb = {
       created_at: createdAt,
     };
 
+    // 1. Try Python FastAPI Backend
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/recordings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recording),
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data as RecordingRecord;
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -335,9 +394,7 @@ export const sqliteDb = {
           ]
         );
         saveDatabase();
-      } catch (err) {
-        console.error('SQLite createRecording error', err);
-      }
+      } catch {}
     }
 
     loadFallback();
@@ -347,6 +404,17 @@ export const sqliteDb = {
   },
 
   async getRecordings(meetingId?: string): Promise<RecordingRecord[]> {
+    // 1. Try Python FastAPI Backend
+    try {
+      const url = meetingId ? `${FASTAPI_BASE}/recordings?meeting_id=${meetingId}` : `${FASTAPI_BASE}/recordings`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const data = await res.json();
+        return data as RecordingRecord[];
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -364,9 +432,7 @@ export const sqliteDb = {
             return obj as RecordingRecord;
           });
         }
-      } catch (err) {
-        console.error('SQLite getRecordings error', err);
-      }
+      } catch {}
     }
 
     loadFallback();
@@ -384,6 +450,21 @@ export const sqliteDb = {
       created_at: createdAt,
     };
 
+    // 1. Try Python FastAPI Backend
+    try {
+      const res = await fetch(`${FASTAPI_BASE}/files`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(file),
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data as SharedFileRecord;
+      }
+    } catch {}
+
+    // 2. Fallback to SQLite WASM
     const db = await getDatabase();
     if (db) {
       try {
@@ -402,9 +483,7 @@ export const sqliteDb = {
           ]
         );
         saveDatabase();
-      } catch (err) {
-        console.error('SQLite createSharedFile error', err);
-      }
+      } catch {}
     }
 
     loadFallback();
