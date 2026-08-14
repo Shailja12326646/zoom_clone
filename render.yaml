@@ -1,0 +1,26 @@
+services:
+  # 1. Python FastAPI Backend Service
+  - type: web
+    name: zoom-clone-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  # 2. Next.js Frontend Web Service
+  - type: web
+    name: zoom-clone-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: zoom-clone-backend
+          property: host
+          path: /api
